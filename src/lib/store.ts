@@ -43,12 +43,12 @@ export interface CurrentUser {
 }
 
 const DEFAULT_USER: CurrentUser = {
-  id: 'current-user-id',
-  name: 'Sherzod',
-  surname: 'Alimov',
+  id: 'user-azamat-karimov',
+  name: 'Azamat',
+  surname: 'Karimov',
   phone: '+998 90 123 45 67',
-  email: 'sherzod.user@gmail.com',
-  avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80',
+  email: 'azamat.karimov@gmail.com',
+  avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop&q=80',
   roles: ['buyurtmachi', 'usta', 'ishberuvchi'],
   currentRole: 'buyurtmachi',
   isVerified: true,
@@ -82,7 +82,7 @@ interface AppState {
 }
 
 function loadInitialState(): AppState {
-  let savedUser: CurrentUser | null = null;
+  let savedUser: CurrentUser | null = DEFAULT_USER;
   try {
     const rawUser = localStorage.getItem('ishtop_current_user');
     if (rawUser) {
@@ -98,7 +98,7 @@ function loadInitialState(): AppState {
       const parsed = JSON.parse(saved);
       return {
         ...parsed,
-        user: savedUser,
+        user: savedUser || DEFAULT_USER,
         selectedCity: parsed.selectedCity || CITIES[0],
       };
     }
@@ -107,7 +107,7 @@ function loadInitialState(): AppState {
   }
 
   return {
-    user: savedUser,
+    user: savedUser || DEFAULT_USER,
     selectedCity: CITIES[0], // Navoiy shahri
     serviceRadiusKm: 30,
     specialists: INITIAL_SPECIALISTS,
