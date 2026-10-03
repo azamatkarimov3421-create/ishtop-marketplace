@@ -61,8 +61,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
   const [showGoogleGuide, setShowGoogleGuide] = useState(false);
   const [copiedCallback, setCopiedCallback] = useState(false);
 
-  if (!isOpen) return null;
-
   const toggleRole = (role: UserRole) => {
     if (selectedRoles.includes(role)) {
       if (selectedRoles.length > 1) {
@@ -282,8 +280,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
     }
   };
 
-  const googleBtnRef = useRef<HTMLDivElement>(null);
-
   const handleGoogleCredentialResponse = (response: any) => {
     if (!response?.credential) return;
     const payload = decodeJwtPayload(response.credential);
@@ -345,17 +341,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
             auto_select: false,
             cancel_on_tap_outside: true,
           });
-
-          if (googleBtnRef.current) {
-            googleBtnRef.current.innerHTML = '';
-            g.accounts.id.renderButton(googleBtnRef.current, {
-              theme: 'outline',
-              size: 'large',
-              width: 320,
-              text: 'continue_with',
-              shape: 'pill',
-            });
-          }
         } catch (e) {
           console.warn("GSI init warning:", e);
         }
@@ -409,6 +394,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
     setCopiedCallback(true);
     setTimeout(() => setCopiedCallback(false), 3000);
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
@@ -676,9 +663,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
         >
           <span>⚡ 1-bosishda tezkor kirish (Parolsiz darhol kiring)</span>
         </button>
-
-        {/* Google Identity Services Official Container */}
-        <div ref={googleBtnRef} className="flex justify-center w-full empty:hidden" />
 
         {/* Google OAuth Login */}
         <button
