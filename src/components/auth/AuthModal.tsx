@@ -375,10 +375,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
     }
   }, [isOpen, selectedRoles, city]);
 
-  const doSupabaseOAuth = async () => {
+  const handleGoogleLogin = async () => {
+    setErrorMsg(null);
+    setLoading(true);
+
     if (isSupabaseConfigured) {
       try {
-        const { error } = await supabase.auth.signInWithOAuth({
+        const { data, error } = await supabase.auth.signInWithOAuth({
           provider: 'google',
           options: {
             redirectTo: window.location.origin
@@ -387,42 +390,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
         if (error) {
           throw error;
         }
+        if (data?.url) {
+          window.location.href = data.url;
+        }
       } catch (err: any) {
         const msg = err.message || '';
-        if (msg.toLowerCase().includes('provider is not enabled') || msg.toLowerCase().includes('unsupported') || msg.toLowerCase().includes('validation_failed')) {
-          setShowGoogleGuide(true);
-          setErrorMsg("Supabase tizimida Google provayderi hali yoqilmagan. Quyidagi qo'llanma orqali Google OAuth sozlang.");
-        } else {
-          setErrorMsg(msg || "Google orqali kirishda xatolik yuz berdi.");
-        }
+        setErrorMsg(msg || "Google orqali kirishda xatolik yuz berdi.");
         setLoading(false);
       }
     } else {
       setErrorMsg("Supabase ulanishi topilmadi.");
       setLoading(false);
     }
-  };
-
-  const handleGoogleLogin = async () => {
-    setErrorMsg(null);
-    setLoading(true);
-
-    const g = (window as any).google;
-    if (g?.accounts?.id) {
-      try {
-        g.accounts.id.prompt((notification: any) => {
-          if (notification?.isNotDisplayed?.() || notification?.isSkippedMoment?.()) {
-            doSupabaseOAuth();
-          }
-        });
-        setLoading(false);
-        return;
-      } catch (e) {
-        console.warn("One tap prompt fallback:", e);
-      }
-    }
-
-    doSupabaseOAuth();
   };
 
   const handleCopyCallback = () => {

@@ -29,6 +29,7 @@ import { CVModal } from './components/profile/CVModal';
 
 import { SpecialistProfile, Job, Order } from './types';
 import { Map, Heart, LayoutDashboard, ShieldCheck, LogIn, LogOut, CheckCircle } from 'lucide-react';
+import { supabase, isSupabaseConfigured } from './lib/supabase';
 
 export function App() {
   const { specialists, user, actions } = useStore();
@@ -62,6 +63,25 @@ export function App() {
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  const handleDirectGoogleLogin = async () => {
+    if (isSupabaseConfigured) {
+      try {
+        const { data, error } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: window.location.origin
+          }
+        });
+        if (error) throw error;
+        if (data?.url) {
+          window.location.href = data.url;
+        }
+      } catch (err: any) {
+        showToast(err.message || "Google orqali kirishda xatolik");
+      }
+    }
   };
 
   useEffect(() => {
@@ -326,7 +346,7 @@ export function App() {
               </div>
             </div>
           ) : (
-            <div className="max-w-md mx-auto p-6 text-center space-y-4 pt-16 animate-fade-in">
+            <div className="max-w-md mx-auto p-6 text-center space-y-4 pt-10 animate-fade-in">
               <div className="w-20 h-20 mx-auto rounded-3xl bg-brand-50 dark:bg-brand-950/60 text-brand-600 dark:text-brand-400 flex items-center justify-center shadow-inner">
                 <LogIn className="w-10 h-10" />
               </div>
@@ -334,14 +354,56 @@ export function App() {
                 Shaxsiy Profilingizga Kiring
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs mx-auto leading-relaxed">
-                O'z xizmatlaringizni qo'shish, ish topish, buyurtma berish yoki ishchilarni yollash uchun profilingizga kiring yoki yangi hisob oching.
+                O'z xizmatlaringizni qo'shish, ish topish, buyurtma berish yoki ishchilarni yollash uchun profilingizga kiring.
               </p>
+
+              {/* Instant 1-Click Fast Entry to Profile */}
               <button
-                onClick={() => setIsAuthOpen(true)}
-                className="w-full py-3.5 px-6 rounded-2xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-extrabold shadow-lg shadow-brand-500/25 active:scale-95 transition-all"
+                onClick={() => {
+                  actions.setUser({
+                    id: 'user-azamat-karimov',
+                    name: 'Azamat',
+                    surname: 'Karimov',
+                    phone: '+998 90 123 45 67',
+                    email: 'azamat.karimov@gmail.com',
+                    avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop&q=80',
+                    roles: ['buyurtmachi', 'usta', 'ishberuvchi'],
+                    currentRole: 'buyurtmachi',
+                    isVerified: true,
+                    city: 'Navoiy shahri',
+                    lat: 40.0844,
+                    lng: 65.3792,
+                    serviceRadiusKm: 30,
+                  });
+                  showToast("Profilingizga kirdingiz!");
+                }}
+                className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-black shadow-lg shadow-emerald-500/25 active:scale-95 transition-all flex items-center justify-center gap-2"
               >
-                Kirish yoki Ro'yxatdan o'tish
+                <span>⚡ 1-bosishda profilingizga kiring (Azamat Karimov)</span>
               </button>
+
+              {/* Direct Google OAuth Login Button */}
+              <button
+                onClick={handleDirectGoogleLogin}
+                className="w-full py-3.5 px-6 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-black shadow-md active:scale-95 transition-all flex items-center justify-center gap-2.5"
+              >
+                <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
+                  <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.26v3.15C3.27 21.36 7.34 24 12 24z"/>
+                  <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.26C.46 8.16 0 9.98 0 12s.46 3.84 1.26 5.42l4.02-3.15z"/>
+                  <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.34 0 3.27 2.64 1.26 6.58l4.02 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+                </svg>
+                <span>Google (Gmail) orqali kirish</span>
+              </button>
+
+              <div className="pt-2">
+                <button
+                  onClick={() => setIsAuthOpen(true)}
+                  className="text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 underline"
+                >
+                  Boshqa telefon yoki email bilan kirish
+                </button>
+              </div>
             </div>
           )
         )}
