@@ -24,6 +24,7 @@ import {
   CITIES
 } from './mockData';
 import { calculateDistanceKm } from './geo';
+import { supabase, isSupabaseConfigured } from './supabase';
 
 export interface CurrentUser {
   id: string;
@@ -229,6 +230,29 @@ export const store = {
       ]
     };
     notify();
+
+    // Live Supabase Sync
+    if (isSupabaseConfigured) {
+      supabase.from('jobs').insert([{
+        title: job.title,
+        category: job.category,
+        position: job.position,
+        description: job.description,
+        city: job.city,
+        district: job.district,
+        address: job.address,
+        latitude: job.lat,
+        longitude: job.lng,
+        phone: job.phone,
+        salary_min: job.salaryMin,
+        salary_max: job.salaryMax,
+        job_type: job.jobType,
+        skills: job.skills,
+        is_vip: job.isVip
+      }]).then(({ error }) => {
+        if (error) console.info("Supabase job sync fallback:", error.message);
+      });
+    }
   },
 
   applyForJob(jobId: string, coverLetter: string, expectedSalary: number) {
@@ -298,6 +322,23 @@ export const store = {
       ]
     };
     notify();
+
+    // Live Supabase Sync
+    if (isSupabaseConfigured) {
+      supabase.from('orders').insert([{
+        service_title: orderData.serviceTitle,
+        category: orderData.category,
+        problem_description: orderData.problemDescription,
+        budget: orderData.budget,
+        city: orderData.city,
+        address: orderData.address,
+        required_date: orderData.requiredDate,
+        notes: orderData.notes,
+        status: 'yangi'
+      }]).then(({ error }) => {
+        if (error) console.info("Supabase order sync fallback:", error.message);
+      });
+    }
   },
 
   updateOrderStatus(orderId: string, status: Order['status']) {
@@ -346,6 +387,57 @@ export const store = {
       ...state,
       messages: updatedMessages,
       chatRooms: updatedRooms
+    };
+    notify();
+
+    // Live Supabase Sync
+    if (isSupabaseConfigured) {
+      supabase.from('messages').insert([{
+        room_id: roomId,
+        sender_id: message.senderId,
+        receiver_id: message.receiverId,
+        message_text: message.text,
+        message_type: message.type,
+        media_url: message.mediaUrl
+      }]).then(({ error }) => {
+        if (error) console.info("Supabase message sync fallback:", error.message);
+      });
+    }
+  },
+
+  updatePriceOfferStatus(roomId: string, messageId: string, status: 'accepted' | 'declined') {
+    const roomMessages = state.messages[roomId] || [];
+    const updated = roomMessages.map(m => {
+      if (m.id === messageId && m.priceOffer) {
+        return {
+          ...m,
+          priceOffer: {
+            ...m.priceOffer,
+            status
+          }
+        };
+      }
+      return m;
+    });
+
+    state = {
+      ...state,
+      messages: {
+        ...state.messages,
+        [roomId]: updated
+      }
+    };
+    notify();
+  },
+
+  appendIncomingMessage(roomId: string, message: ChatMessage) {
+    const roomMessages = state.messages[roomId] || [];
+    state = {
+      ...state,
+      messages: {
+        ...state.messages,
+        [roomId]: [...roomMessages, message]
+      }
     };
     notify();
   },
@@ -466,4 +558,83 @@ export function useStore() {
     jobs: jobsWithDistance,
     actions: store
   };
+}
+
+// Initialize Supabase Sync on client load
+async function initSupabaseSync() {
+  if (!isSupabaseConfigured) return;
+
+  try {
+    // 1. Fetch live jobs if any
+    const { data: dbJobs } = await supabase
+      .from('jobs')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (dbJobs && dbJobs.length > 0) {
+      const mappedJobs: Job[] = dbJobs.map((j: any) => ({
+        id: j.id || 'job-' + Date.now(),
+        title: j.title || 'Ish',
+        companyName: j.company_name || 'Ish beruvchi',
+        employerId: j.employer_id || 'employer-1',
+        category: j.category || 'Mebel',
+        position: j.position || j.title,
+        description: j.description || '',
+        skills: Array.isArray(j.skills) ? j.skills : ['Tajriba'],
+        experienceYears: j.experience_years || 1,
+        requiredWorkersCount: j.required_workers_count || 1,
+        salaryMin: Number(j.salary_min) || 5000000,
+        salaryMax: Number(j.salary_max) || 8000000,
+        salaryType: 'monthly',
+        jobType: j.job_type || 'full_time',
+        workHours: j.work_hours || '09:00 - 18:00',
+        city: j.city || 'Navoiy shahri',
+        district: j.district || 'Markaz',
+        address: j.address || '',
+        lat: Number(j.latitude) || 40.0844,
+        lng: Number(j.longitude) || 65.3792,
+        phone: j.phone || '+998 90 123 45 67',
+        isVip: Boolean(j.is_vip),
+        createdAt: 'Yangi',
+        applicationsCount: 0
+      }));
+
+      state = {
+        ...state,
+        jobs: [...mappedJobs, ...state.jobs.filter(sj => !mappedJobs.some(mj => mj.id === sj.id))]
+      };
+      notify();
+    }
+
+    // 2. Setup Realtime messages subscription
+    supabase
+      .channel('public:messages')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload: any) => {
+        const row = payload.new;
+        if (row && row.room_id) {
+          const currentUserId = state.user?.id || 'current-user-id';
+          if (row.sender_id !== currentUserId) {
+            const incoming: ChatMessage = {
+              id: 'msg-' + (row.id || Date.now()),
+              senderId: row.sender_id,
+              receiverId: row.receiver_id,
+              roomId: row.room_id,
+              text: row.message_text || '',
+              type: row.message_type || 'text',
+              mediaUrl: row.media_url,
+              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              isRead: false
+            };
+            store.appendIncomingMessage(row.room_id, incoming);
+          }
+        }
+      })
+      .subscribe();
+  } catch (e) {
+    console.info("Supabase live init notice:", e);
+  }
+}
+
+if (typeof window !== 'undefined') {
+  initSupabaseSync();
 }

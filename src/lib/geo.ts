@@ -44,3 +44,76 @@ export function formatCurrency(amount: number): string {
   if (!amount && amount !== 0) return "0 so'm";
   return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + " so'm";
 }
+
+/**
+ * Get device GPS coordinates via browser Geolocation API
+ */
+export async function getCurrentGpsPosition(): Promise<{ lat: number; lng: number }> {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error("Brauzeringizda Geolocation qo'llab-quvvatlanmaydi"));
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        resolve({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude
+        });
+      },
+      (err) => {
+        reject(err);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 60000
+      }
+    );
+  });
+}
+
+/**
+ * Live OpenStreetMap Nominatim reverse geocoding (100% free, real street & city lookup)
+ */
+export async function reverseGeocodeOsm(lat: number, lng: number): Promise<{
+  displayName: string;
+  city: string;
+  district: string;
+  road: string;
+}> {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1&accept-language=uz,ru,en`,
+      {
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'IshTop-Marketplace-Uzbekistan/1.0'
+        }
+      }
+    );
+    if (!res.ok) throw new Error('Geocoding failed');
+    const data = await res.json();
+    const addr = data.address || {};
+
+    const city = addr.city || addr.town || addr.county || addr.state || "Navoiy shahri";
+    const district = addr.suburb || addr.neighbourhood || addr.quarter || addr.district || "Markaz";
+    const road = addr.road || addr.street || "";
+
+    return {
+      displayName: data.display_name || `${city}, ${district}`,
+      city,
+      district,
+      road
+    };
+  } catch (e) {
+    console.warn("Reverse geocode fallback:", e);
+    return {
+      displayName: "Aniqlangan joylashuv",
+      city: "Navoiy shahri",
+      district: "Markaz",
+      road: ""
+    };
+  }
+}

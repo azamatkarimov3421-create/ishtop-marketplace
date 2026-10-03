@@ -2,8 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import { useStore } from '../../lib/store';
 import { SpecialistProfile, Job } from '../../types';
-import { Star, MapPin, Car, CheckCircle2, X } from 'lucide-react';
-import { formatDistance, formatCurrency } from '../../lib/geo';
+import { Star, MapPin, Car, CheckCircle2, X, LocateFixed, Loader2, Compass } from 'lucide-react';
+import { formatDistance, formatCurrency, getCurrentGpsPosition, reverseGeocodeOsm } from '../../lib/geo';
 
 interface InteractiveMapViewProps {
   onViewProfile: (spec: SpecialistProfile) => void;
@@ -16,15 +16,41 @@ export const InteractiveMapView: React.FC<InteractiveMapViewProps> = ({
   onContact,
   onViewJob,
 }) => {
-  const { selectedCity, serviceRadiusKm, specialists, jobs } = useStore();
+  const { selectedCity, serviceRadiusKm, specialists, jobs, actions } = useStore();
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const circleRef = useRef<L.Circle | null>(null);
+  const userMarkerRef = useRef<L.Marker | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
 
   const [activeFilter, setActiveFilter] = useState<'all' | 'ustalar' | 'ishlar'>('all');
   const [selectedSpec, setSelectedSpec] = useState<SpecialistProfile | null>(null);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [isGpsLoading, setIsGpsLoading] = useState(false);
+  const [gpsNotice, setGpsNotice] = useState<string | null>(null);
+
+  const handleLocateMe = async () => {
+    setIsGpsLoading(true);
+    try {
+      const pos = await getCurrentGpsPosition();
+      const geo = await reverseGeocodeOsm(pos.lat, pos.lng);
+      actions.setSelectedCity({
+        name: geo.city || "Joriy joylashuv",
+        region: geo.district || "O'zbekiston",
+        lat: pos.lat,
+        lng: pos.lng
+      });
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.flyTo([pos.lat, pos.lng], 14, { duration: 1.2 });
+      }
+      setGpsNotice(`Aniq GPS topildi: ${geo.road ? geo.road + ', ' : ''}${geo.city}`);
+      setTimeout(() => setGpsNotice(null), 4000);
+    } catch (err: any) {
+      alert("GPS koordinata olish uchun brauzerda 'Joylashuvga ruxsat berish' (Allow location) tugmasini bosing.");
+    } finally {
+      setIsGpsLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!mapContainerRef.current) return;
@@ -44,8 +70,22 @@ export const InteractiveMapView: React.FC<InteractiveMapViewProps> = ({
 
       mapInstanceRef.current = map;
       markersLayerRef.current = L.layerGroup().addTo(map);
+
+      // Interactive map click: move center anywhere on the map
+      map.on('click', async (e: L.LeafletMouseEvent) => {
+        const { lat, lng } = e.latlng;
+        const geo = await reverseGeocodeOsm(lat, lng);
+        actions.setSelectedCity({
+          name: geo.city,
+          region: geo.district,
+          lat,
+          lng
+        });
+        setGpsNotice(`Yangi markaz: ${geo.road ? geo.road + ', ' : ''}${geo.city}`);
+        setTimeout(() => setGpsNotice(null), 3500);
+      });
     } else {
-      mapInstanceRef.current.setView([selectedCity.lat, selectedCity.lng], 12);
+      mapInstanceRef.current.setView([selectedCity.lat, selectedCity.lng], 13);
     }
 
     const map = mapInstanceRef.current;
@@ -203,6 +243,48 @@ export const InteractiveMapView: React.FC<InteractiveMapViewProps> = ({
             💼 Ishlar ({jobs.length})
           </button>
         </div>
+
+        {/* Real GPS locate button */}
+        <button
+          onClick={handleLocateMe}
+          disabled={isGpsLoading}
+          className="p-2.5 sm:px-3.5 sm:py-2 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md hover:bg-brand-50 dark:hover:bg-slate-800 text-brand-600 dark:text-brand-400 rounded-2xl shadow-md border border-slate-200/80 dark:border-slate-700/80 pointer-events-auto flex items-center gap-1.5 transition-all active:scale-95"
+          title="Mening jonli GPS lokatsiyam"
+        >
+          {isGpsLoading ? (
+            <Loader2 className="w-4 h-4 animate-spin text-brand-600" />
+          ) : (
+            <LocateFixed className="w-4 h-4 text-brand-600" />
+          )}
+          <span className="text-xs font-extrabold hidden sm:inline">Mening GPS</span>
+        </button>
+      </div>
+
+      {/* GPS Notice notification */}
+      {gpsNotice && (
+        <div className="absolute top-16 left-4 right-4 z-20 flex justify-center pointer-events-none animate-slide-down">
+          <div className="bg-slate-900/90 text-white text-xs font-semibold px-4 py-2 rounded-full shadow-lg backdrop-blur-sm border border-slate-700">
+            📍 {gpsNotice}
+          </div>
+        </div>
+      )}
+
+      {/* Floating Radius Quick Selector */}
+      <div className="absolute top-16 left-4 z-20 pointer-events-auto hidden md:flex flex-col gap-1 p-1 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md rounded-2xl shadow-md border border-slate-200 dark:border-slate-800">
+        <span className="text-[10px] font-bold text-slate-400 px-2 py-0.5">Radius</span>
+        {[5, 10, 20, 50, 100].map((r) => (
+          <button
+            key={r}
+            onClick={() => actions.setServiceRadiusKm(r)}
+            className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all ${
+              serviceRadiusKm === r
+                ? 'bg-brand-600 text-white shadow-sm'
+                : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            {r} km
+          </button>
+        ))}
       </div>
 
       {/* Specialist Popup Card at bottom */}

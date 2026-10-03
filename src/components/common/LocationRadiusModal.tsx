@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, MapPin, Check, Compass } from 'lucide-react';
 import { CITIES } from '../../lib/mockData';
 import { useStore } from '../../lib/store';
+import { getCurrentGpsPosition, reverseGeocodeOsm } from '../../lib/geo';
 
 interface LocationRadiusModalProps {
   isOpen: boolean;
@@ -59,10 +60,38 @@ export const LocationRadiusModal: React.FC<LocationRadiusModalProps> = ({ isOpen
 
         {/* Content */}
         <div className="py-4 space-y-5 overflow-y-auto flex-1 pr-1">
+          {/* GPS Auto-Detect Button */}
+          <div className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-slate-850 rounded-2xl border border-blue-200/70 dark:border-slate-700">
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  const pos = await getCurrentGpsPosition();
+                  const geo = await reverseGeocodeOsm(pos.lat, pos.lng);
+                  setTempCity({
+                    name: geo.city || "Aniq lokatsiya",
+                    region: geo.district || "Navoiy",
+                    lat: pos.lat,
+                    lng: pos.lng
+                  });
+                } catch (e) {
+                  alert("GPS ruxsati berilmadi yoki qurilmangizda GPS yoqilmagan");
+                }
+              }}
+              className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-black shadow-sm transition-all active:scale-95"
+            >
+              <Compass className="w-4 h-4" />
+              <span>📍 Aniq GPS orqali joylashuvimni aniqlash</span>
+            </button>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5 text-center">
+              Hozirgi turgan joyingiz: <strong className="text-slate-700 dark:text-slate-200">{tempCity.name}</strong>
+            </p>
+          </div>
+
           {/* City Selection */}
           <div>
             <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block mb-2">
-              Shahar / Viloyatni tanlang:
+              Yoki shaharni qo'lda tanlang:
             </label>
             <div className="grid grid-cols-2 gap-2">
               {CITIES.map((city) => {

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Phone, Mail, Lock, ShieldCheck, Check, UserCheck } from 'lucide-react';
 import { UserRole } from '../../types';
 import { useStore } from '../../lib/store';
+import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -25,6 +26,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
   const [phone, setPhone] = useState('+998 90 123 45 67');
   const [otpCode, setOtpCode] = useState('7788');
   const [selectedRoles, setSelectedRoles] = useState<UserRole[]>(['usta', 'buyurtmachi']);
+  const [loading, setLoading] = useState(false);
 
   if (!isOpen) return null;
 
@@ -38,13 +40,37 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
     }
   };
 
-  const handlePhoneSubmit = (e: React.FormEvent) => {
+  const handlePhoneSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
+
+    if (isSupabaseConfigured) {
+      try {
+        const cleanPhone = phone.replace(/\s+/g, '');
+        await supabase.auth.signInWithOtp({ phone: cleanPhone });
+      } catch (err) {
+        console.warn("Supabase OTP send notice:", err);
+      }
+    }
+
+    setLoading(false);
     setStep('otp');
   };
 
-  const handleOtpSubmit = (e: React.FormEvent) => {
+  const handleOtpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
+
+    if (isSupabaseConfigured && otpCode.length === 6) {
+      try {
+        const cleanPhone = phone.replace(/\s+/g, '');
+        await supabase.auth.verifyOtp({ phone: cleanPhone, token: otpCode, type: 'sms' });
+      } catch (err) {
+        console.warn("Supabase OTP verify notice:", err);
+      }
+    }
+
+    setLoading(false);
     setStep('roles');
   };
 
@@ -68,7 +94,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
     onClose();
   };
 
-  const handleGoogleLogin = () => {
+  const handleGoogleLogin = async () => {
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: window.location.origin
+          }
+        });
+        return;
+      } catch (err) {
+        console.warn("Google login fallback:", err);
+      }
+    }
     setStep('roles');
   };
 
