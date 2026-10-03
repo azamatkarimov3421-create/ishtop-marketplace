@@ -206,18 +206,26 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
   };
 
   const handleGoogleLogin = async () => {
+    setErrorMsg(null);
+    setLoading(true);
     if (isSupabaseConfigured) {
       try {
-        await supabase.auth.signInWithOAuth({
+        const { error } = await supabase.auth.signInWithOAuth({
           provider: 'google',
           options: {
             redirectTo: window.location.origin
           }
         });
-        return;
-      } catch (err) {
-        console.warn("Google login fallback:", err);
+        if (error) {
+          throw error;
+        }
+      } catch (err: any) {
+        setErrorMsg(err.message || "Google orqali kirishda xatolik. Supabase panelida Google Provider yoqilganini tekshiring.");
+        setLoading(false);
       }
+    } else {
+      setErrorMsg("Supabase ulanishi topilmadi.");
+      setLoading(false);
     }
   };
 

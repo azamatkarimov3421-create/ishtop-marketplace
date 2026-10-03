@@ -616,6 +616,50 @@ async function initSupabaseSync() {
       notify();
     }
 
+    // Live Auth listener for Google OAuth redirects
+    supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user) {
+        const u = session.user;
+        const meta = u.user_metadata || {};
+        const fullName = meta.full_name || meta.name || '';
+        const parts = fullName.split(' ');
+        const loadedUser: CurrentUser = {
+          id: u.id,
+          name: parts[0] || meta.first_name || 'Foydalanuvchi',
+          surname: parts.slice(1).join(' ') || meta.last_name || '',
+          phone: meta.phone || u.phone || '',
+          email: u.email || '',
+          avatar: meta.avatar_url || meta.picture || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop&q=80',
+          roles: meta.roles || ['buyurtmachi', 'usta'],
+          currentRole: meta.roles?.[0] || 'buyurtmachi',
+          isVerified: true,
+          city: meta.city || 'Navoiy shahri',
+          lat: 40.0844,
+          lng: 65.3792,
+          serviceRadiusKm: 30
+        };
+        state = { ...state, user: loadedUser };
+        localStorage.setItem('ishtop_current_user', JSON.stringify(loadedUser));
+        notify();
+
+        // Upsert to profiles table in Supabase
+        supabase.from('profiles').upsert([{
+          user_id: u.id,
+          name: loadedUser.name,
+          surname: loadedUser.surname,
+          email: loadedUser.email,
+          avatar_url: loadedUser.avatar,
+          city: loadedUser.city
+        }], { onConflict: 'user_id' }).then(({ error }) => {
+          if (error) console.info("Profile upsert notice:", error.message);
+        });
+      } else if (event === 'SIGNED_OUT') {
+        state = { ...state, user: null };
+        localStorage.removeItem('ishtop_current_user');
+        notify();
+      }
+    });
+
     // 1. Fetch live specialists from profiles
     const { data: dbProfiles } = await supabase
       .from('profiles')
