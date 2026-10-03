@@ -449,14 +449,106 @@ ALTER TABLE public.jobs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.roles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.subcategories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.services ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.portfolios ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Public profiles are viewable by everyone" ON public.profiles FOR SELECT USING (true);
 CREATE POLICY "Public jobs are viewable by everyone" ON public.jobs FOR SELECT USING (true);
+CREATE POLICY "Public categories are viewable by everyone" ON public.categories FOR SELECT USING (true);
+CREATE POLICY "Public subcategories are viewable by everyone" ON public.subcategories FOR SELECT USING (true);
+CREATE POLICY "Public roles are viewable by everyone" ON public.roles FOR SELECT USING (true);
+CREATE POLICY "Public services are viewable by everyone" ON public.services FOR SELECT USING (true);
+CREATE POLICY "Public portfolios are viewable by everyone" ON public.portfolios FOR SELECT USING (true);
+CREATE POLICY "Public reviews are viewable by everyone" ON public.reviews FOR SELECT USING (true);
+CREATE POLICY "Public messages are viewable by everyone" ON public.messages FOR SELECT USING (true);
 CREATE POLICY "Users can update their own profile" ON public.profiles FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "Users can view their notifications" ON public.notifications FOR SELECT USING (auth.uid() = user_id);
+
+-- Allow public inserts for marketplace client actions
+CREATE POLICY "Allow public insert on users" ON public.users FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public insert on profiles" ON public.profiles FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public insert on jobs" ON public.jobs FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public insert on orders" ON public.orders FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public insert on messages" ON public.messages FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public insert on reviews" ON public.reviews FOR INSERT WITH CHECK (true);
 
 -- Indexes for lightning fast radius and search queries
 CREATE INDEX IF NOT EXISTS idx_profiles_city ON public.profiles(city);
 CREATE INDEX IF NOT EXISTS idx_profiles_coords ON public.profiles(latitude, longitude);
 CREATE INDEX IF NOT EXISTS idx_jobs_city ON public.jobs(city);
 CREATE INDEX IF NOT EXISTS idx_jobs_category ON public.jobs(category);
+
+-- ==============================================================================
+-- 35. SEED DATA (BOSHLANG'ICH MA'LUMOTLAR)
+-- ==============================================================================
+
+-- ROLES
+INSERT INTO public.roles (slug, name_uz, name_ru, name_en) VALUES
+('ishchi', 'Ishchi', 'Рабочий', 'Worker'),
+('freelancer', 'Freelancer', 'Фрилансер', 'Freelancer'),
+('usta', 'Usta / Mutaxassis', 'Мастер', 'Craftsman / Specialist'),
+('xizmat_korsatuvchi', 'Xizmat ko''rsatuvchi', 'Поставщик услуг', 'Service Provider'),
+('buyurtmachi', 'Buyurtmachi', 'Заказчик', 'Client / Customer'),
+('ishberuvchi', 'Ish beruvchi', 'Работодатель', 'Employer'),
+('kompaniya', 'Kompaniya / Korxona', 'Компания', 'Company')
+ON CONFLICT (slug) DO NOTHING;
+
+-- CATEGORIES
+INSERT INTO public.categories (slug, name_uz, icon, order_index) VALUES
+('qurilish', 'Qurilish', 'Hammer', 1),
+('mebel', 'Mebel', 'Armchair', 2),
+('elektrik', 'Elektrik', 'Zap', 3),
+('santexnik', 'Santexnik', 'Wrench', 4),
+('avto', 'Avto', 'Car', 5),
+('tamirlash', 'Ta''mirlash', 'Paintbrush', 6),
+('it', 'IT & Dasturlash', 'Laptop', 7),
+('dizayn', 'Dizayn & 3D', 'Palette', 8),
+('talim', 'Ta''lim & Repetitor', 'GraduationCap', 9),
+('haydovchi', 'Haydovchi & Kuryer', 'Truck', 10),
+('gozallik', 'Go''zallik & Tikuv', 'Scissors', 11),
+('boshqa', 'Boshqa xizmatlar', 'Grid', 12)
+ON CONFLICT (slug) DO NOTHING;
+
+-- SUBCATEGORIES FOR MEBEL
+INSERT INTO public.subcategories (category_id, name_uz, slug)
+SELECT id, 'Oshxona mebeli', 'oshxona-mebeli' FROM public.categories WHERE slug = 'mebel'
+ON CONFLICT (category_id, slug) DO NOTHING;
+
+INSERT INTO public.subcategories (category_id, name_uz, slug)
+SELECT id, 'Shkaf-kupe', 'shkaf-kupe' FROM public.categories WHERE slug = 'mebel'
+ON CONFLICT (category_id, slug) DO NOTHING;
+
+INSERT INTO public.subcategories (category_id, name_uz, slug)
+SELECT id, 'Yumshoq mebel', 'yumshoq-mebel' FROM public.categories WHERE slug = 'mebel'
+ON CONFLICT (category_id, slug) DO NOTHING;
+
+-- SUBCATEGORIES FOR ELEKTRIK
+INSERT INTO public.subcategories (category_id, name_uz, slug)
+SELECT id, 'Elektromontaj', 'elektromontaj' FROM public.categories WHERE slug = 'elektrik'
+ON CONFLICT (category_id, slug) DO NOTHING;
+
+INSERT INTO public.subcategories (category_id, name_uz, slug)
+SELECT id, 'Lustra va qandillar', 'lustra-qandillar' FROM public.categories WHERE slug = 'elektrik'
+ON CONFLICT (category_id, slug) DO NOTHING;
+
+INSERT INTO public.subcategories (category_id, name_uz, slug)
+SELECT id, 'Shchit yig''ish', 'shchit-yigish' FROM public.categories WHERE slug = 'elektrik'
+ON CONFLICT (category_id, slug) DO NOTHING;
+
+-- SUBCATEGORIES FOR IT
+INSERT INTO public.subcategories (category_id, name_uz, slug)
+SELECT id, 'Frontend React', 'frontend-react' FROM public.categories WHERE slug = 'it'
+ON CONFLICT (category_id, slug) DO NOTHING;
+
+INSERT INTO public.subcategories (category_id, name_uz, slug)
+SELECT id, 'Backend Node/Python', 'backend-node-python' FROM public.categories WHERE slug = 'it'
+ON CONFLICT (category_id, slug) DO NOTHING;
+
+INSERT INTO public.subcategories (category_id, name_uz, slug)
+SELECT id, 'Mobil ilova (Flutter/Android)', 'mobil-ilova' FROM public.categories WHERE slug = 'it'
+ON CONFLICT (category_id, slug) DO NOTHING;
+
