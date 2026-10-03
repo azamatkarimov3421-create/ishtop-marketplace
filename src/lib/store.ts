@@ -591,7 +591,7 @@ async function initSupabaseSync() {
   try {
     // 0. Check Supabase Auth Session
     const { data: sessionData } = await supabase.auth.getSession();
-    if (sessionData?.session?.user && !state.user) {
+    if (sessionData?.session?.user && (!state.user || state.user.id !== sessionData.session.user.id)) {
       const u = sessionData.session.user;
       const meta = u.user_metadata || {};
       const fullName = meta.full_name || meta.name || '';
