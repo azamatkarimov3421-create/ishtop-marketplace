@@ -1,12 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://mock-supabase-ishtop.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'mock-anon-key-placeholder-uz-ishtop-token';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://iugjwbeqrtjytadtfmne.supabase.co';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_Xf37NuwcWfVESaTBY_uPqw_NTducTnQ';
 
 export const isSupabaseConfigured = Boolean(
-  import.meta.env.VITE_SUPABASE_URL && 
-  import.meta.env.VITE_SUPABASE_ANON_KEY &&
-  import.meta.env.VITE_SUPABASE_URL !== 'https://mock-supabase-ishtop.supabase.co'
+  supabaseUrl && supabaseAnonKey
 );
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
