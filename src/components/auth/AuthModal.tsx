@@ -1,9 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Phone, Mail, Lock, ShieldCheck, Check, UserCheck, AlertCircle, Loader2, Copy, ExternalLink, HelpCircle } from 'lucide-react';
 import { UserRole } from '../../types';
 import { useStore } from '../../lib/store';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { CITIES } from '../../lib/mockData';
+
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '90096257478-j8c27t5ddv5nv0ulprfcfp2t2pmqeta6.apps.googleusercontent.com';
+
+function decodeJwtPayload(token: string) {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    return JSON.parse(jsonPayload);
+  } catch (e) {
+    return null;
+  }
+}
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -207,9 +225,100 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
     }
   };
 
-  const handleGoogleLogin = async () => {
-    setErrorMsg(null);
-    setLoading(true);
+  const googleBtnRef = useRef<HTMLDivElement>(null);
+
+  const handleGoogleCredentialResponse = (response: any) => {
+    if (!response?.credential) return;
+    const payload = decodeJwtPayload(response.credential);
+    if (!payload) return;
+
+    const fullName = payload.name || '';
+    const parts = fullName.split(' ');
+    const gRoles: UserRole[] = selectedRoles.length ? selectedRoles : ['buyurtmachi', 'usta'];
+    const gUser = {
+      id: 'g_' + (payload.sub || Date.now()),
+      name: payload.given_name || parts[0] || 'Foydalanuvchi',
+      surname: payload.family_name || parts.slice(1).join(' ') || '',
+      phone: '+998 ',
+      email: payload.email || '',
+      avatar: payload.picture || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop&q=80',
+      roles: gRoles,
+      currentRole: gRoles[0],
+      isVerified: true,
+      city,
+      lat: 40.0844,
+      lng: 65.3792,
+      serviceRadiusKm: 30,
+    };
+
+    actions.setUser(gUser);
+
+    if (isSupabaseConfigured) {
+      supabase.from('profiles').upsert([{
+        user_id: gUser.id,
+        name: gUser.name,
+        surname: gUser.surname,
+        email: gUser.email,
+        avatar_url: gUser.avatar,
+        city: gUser.city
+      }], { onConflict: 'user_id' }).then(({ error }) => {
+        if (error) console.info("Profiles sync notice:", error.message);
+      });
+
+      (supabase.auth as any).signInWithIdToken?.({
+        provider: 'google',
+        token: response.credential
+      }).catch?.(() => {});
+    }
+
+    onSuccess();
+    onClose();
+  };
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const initGsi = () => {
+      const g = (window as any).google;
+      if (g?.accounts?.id) {
+        try {
+          g.accounts.id.initialize({
+            client_id: GOOGLE_CLIENT_ID,
+            callback: handleGoogleCredentialResponse,
+            auto_select: false,
+            cancel_on_tap_outside: true,
+          });
+
+          if (googleBtnRef.current) {
+            googleBtnRef.current.innerHTML = '';
+            g.accounts.id.renderButton(googleBtnRef.current, {
+              theme: 'outline',
+              size: 'large',
+              width: 320,
+              text: 'continue_with',
+              shape: 'pill',
+            });
+          }
+        } catch (e) {
+          console.warn("GSI init warning:", e);
+        }
+      }
+    };
+
+    if ((window as any).google?.accounts?.id) {
+      initGsi();
+    } else {
+      const timer = setInterval(() => {
+        if ((window as any).google?.accounts?.id) {
+          initGsi();
+          clearInterval(timer);
+        }
+      }, 300);
+      return () => clearInterval(timer);
+    }
+  }, [isOpen, selectedRoles, city]);
+
+  const doSupabaseOAuth = async () => {
     if (isSupabaseConfigured) {
       try {
         const { error } = await supabase.auth.signInWithOAuth({
@@ -235,6 +344,28 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
       setErrorMsg("Supabase ulanishi topilmadi.");
       setLoading(false);
     }
+  };
+
+  const handleGoogleLogin = async () => {
+    setErrorMsg(null);
+    setLoading(true);
+
+    const g = (window as any).google;
+    if (g?.accounts?.id) {
+      try {
+        g.accounts.id.prompt((notification: any) => {
+          if (notification?.isNotDisplayed?.() || notification?.isSkippedMoment?.()) {
+            doSupabaseOAuth();
+          }
+        });
+        setLoading(false);
+        return;
+      } catch (e) {
+        console.warn("One tap prompt fallback:", e);
+      }
+    }
+
+    doSupabaseOAuth();
   };
 
   const handleCopyCallback = () => {
@@ -479,6 +610,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
             YOKI
           </span>
         </div>
+
+        {/* Google Identity Services Official Container */}
+        <div ref={googleBtnRef} className="flex justify-center w-full empty:hidden" />
 
         {/* Google OAuth Login */}
         <button
