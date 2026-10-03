@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <rect width="512" height="512" rx="128" fill="#2563EB"/>
+  <!-- Modern Briefcase & Location Pin / Lightning blend -->
+  <path d="M160 180C160 144.654 188.654 116 224 116H288C323.346 116 352 144.654 352 180V196H384C401.673 196 416 210.327 416 228V364C416 381.673 401.673 396 384 396H128C110.327 396 96 381.673 96 364V228C96 210.327 110.327 196 128 196H160V180Z" fill="white" fill-opacity="0.15"/>
+  <rect x="116" y="208" width="280" height="180" rx="28" fill="white"/>
+  <path d="M192 208V172C192 154.327 206.327 140 224 140H288C305.673 140 320 154.327 320 172V208" stroke="white" stroke-width="24" stroke-linecap="round"/>
+  <!-- Map Pin / Target in center -->
+  <circle cx="256" cy="285" r="38" fill="#2563EB"/>
+  <circle cx="256" cy="285" r="18" fill="white"/>
+  <path d="M256 325L256 345" stroke="#2563EB" stroke-width="12" stroke-linecap="round"/>
+  <path d="M180 265L205 285L180 305" stroke="#93C5FD" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M332 265L307 285L332 305" stroke="#93C5FD" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

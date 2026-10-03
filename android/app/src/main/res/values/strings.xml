@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">IshTop</string>
+    <string name="title_activity_main">IshTop</string>
+    <string name="package_name">uz.ishtop.marketplace</string>
+    <string name="custom_url_scheme">uz.ishtop.marketplace</string>
+</resources>
