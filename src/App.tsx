@@ -89,6 +89,16 @@ export function App() {
     if (!hasSeenOnboarding) {
       setIsOnboardingOpen(true);
     }
+
+    // If returning from Google OAuth redirect, go straight to Profile tab
+    if (window.location.hash.includes('access_token=') || window.location.search.includes('code=')) {
+      setActiveSpecialist(null);
+      setActiveTab('profile');
+      showToast("Xush kelibsiz! Profilingizga muvaffaqiyatli kirdingiz!");
+      setTimeout(() => {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }, 600);
+    }
   }, []);
 
   const handleFinishOnboarding = () => {
