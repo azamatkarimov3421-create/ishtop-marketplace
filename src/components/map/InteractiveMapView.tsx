@@ -2,8 +2,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import { useStore } from '../../lib/store';
 import { SpecialistProfile, Job } from '../../types';
-import { Star, MapPin, Car, CheckCircle2, X, LocateFixed, Loader2, Compass } from 'lucide-react';
+import { Star, MapPin, Car, CheckCircle2, X, LocateFixed, Loader2, Compass, Layers, Satellite, Map as MapIcon } from 'lucide-react';
 import { formatDistance, formatCurrency, getCurrentGpsPosition, reverseGeocodeOsm } from '../../lib/geo';
+
+const GOOGLE_MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyByWewBXjtK8xmFB-LjiKQUzoSTGCpsunU';
 
 interface InteractiveMapViewProps {
   onViewProfile: (spec: SpecialistProfile) => void;
@@ -22,12 +24,47 @@ export const InteractiveMapView: React.FC<InteractiveMapViewProps> = ({
   const circleRef = useRef<L.Circle | null>(null);
   const userMarkerRef = useRef<L.Marker | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
+  const tileLayerRef = useRef<L.TileLayer | null>(null);
 
+  const [mapType, setMapType] = useState<'google_streets' | 'google_satellite' | 'osm'>('google_streets');
   const [activeFilter, setActiveFilter] = useState<'all' | 'ustalar' | 'ishlar'>('all');
   const [selectedSpec, setSelectedSpec] = useState<SpecialistProfile | null>(null);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [isGpsLoading, setIsGpsLoading] = useState(false);
   const [gpsNotice, setGpsNotice] = useState<string | null>(null);
+
+  const applyTileLayer = (map: L.Map, type: 'google_streets' | 'google_satellite' | 'osm') => {
+    if (tileLayerRef.current) {
+      tileLayerRef.current.remove();
+    }
+    let layer: L.TileLayer;
+    if (type === 'google_streets') {
+      layer = L.tileLayer(
+        `https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&key=${GOOGLE_MAPS_KEY}`,
+        {
+          subdomains: ['0', '1', '2', '3'],
+          maxZoom: 21,
+          attribution: '&copy; Google Maps',
+        }
+      );
+    } else if (type === 'google_satellite') {
+      layer = L.tileLayer(
+        `https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}&key=${GOOGLE_MAPS_KEY}`,
+        {
+          subdomains: ['0', '1', '2', '3'],
+          maxZoom: 21,
+          attribution: '&copy; Google Satellite',
+        }
+      );
+    } else {
+      layer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap contributors',
+      });
+    }
+    layer.addTo(map);
+    tileLayerRef.current = layer;
+  };
 
   const handleLocateMe = async () => {
     setIsGpsLoading(true);
@@ -62,11 +99,8 @@ export const InteractiveMapView: React.FC<InteractiveMapViewProps> = ({
         zoomControl: false,
       });
 
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors',
-      }).addTo(map);
-
-      L.control.zoom({ position: 'topright' }).addTo(map);
+      applyTileLayer(map, mapType);
+      L.control.zoom({ position: 'bottomright' }).addTo(map);
 
       mapInstanceRef.current = map;
       markersLayerRef.current = L.layerGroup().addTo(map);
@@ -98,9 +132,9 @@ export const InteractiveMapView: React.FC<InteractiveMapViewProps> = ({
     const circleRadiusMeters = (serviceRadiusKm === 999 ? 100 : serviceRadiusKm) * 1000;
     circleRef.current = L.circle([selectedCity.lat, selectedCity.lng], {
       radius: circleRadiusMeters,
-      color: '#2563eb',
-      fillColor: '#3b82f6',
-      fillOpacity: 0.12,
+      color: mapType === 'google_satellite' ? '#38bdf8' : '#2563eb',
+      fillColor: mapType === 'google_satellite' ? '#38bdf8' : '#3b82f6',
+      fillOpacity: mapType === 'google_satellite' ? 0.22 : 0.12,
       weight: 2,
       dashArray: '6, 6',
     }).addTo(map);
@@ -202,7 +236,13 @@ export const InteractiveMapView: React.FC<InteractiveMapViewProps> = ({
       });
     }
 
-  }, [selectedCity, serviceRadiusKm, specialists, jobs, activeFilter]);
+  }, [selectedCity, serviceRadiusKm, specialists, jobs, activeFilter, mapType]);
+
+  useEffect(() => {
+    if (mapInstanceRef.current) {
+      applyTileLayer(mapInstanceRef.current, mapType);
+    }
+  }, [mapType]);
 
   return (
     <div className="relative w-full h-[calc(100vh-140px)] min-h-[500px] rounded-3xl overflow-hidden shadow-soft border border-slate-200 dark:border-slate-800">
@@ -285,6 +325,48 @@ export const InteractiveMapView: React.FC<InteractiveMapViewProps> = ({
             {r} km
           </button>
         ))}
+      </div>
+
+      {/* Floating Map Layer Switcher: Google, Satellite, OSM */}
+      <div className="absolute top-16 right-4 z-20 pointer-events-auto flex items-center gap-1 p-1 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-2xl shadow-md border border-slate-200/80 dark:border-slate-700/80">
+        <button
+          onClick={() => setMapType('google_streets')}
+          className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+            mapType === 'google_streets'
+              ? 'bg-blue-600 text-white shadow-sm'
+              : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+          }`}
+          title="Google Ko'chalar xaritasi"
+        >
+          <MapIcon className="w-3.5 h-3.5" />
+          <span className="text-[11px] font-extrabold hidden sm:inline">Google</span>
+        </button>
+
+        <button
+          onClick={() => setMapType('google_satellite')}
+          className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+            mapType === 'google_satellite'
+              ? 'bg-emerald-600 text-white shadow-sm'
+              : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+          }`}
+          title="Google Sun'iy yo'ldosh (Gibrid)"
+        >
+          <Satellite className="w-3.5 h-3.5" />
+          <span className="text-[11px] font-extrabold hidden sm:inline">Yo'ldosh</span>
+        </button>
+
+        <button
+          onClick={() => setMapType('osm')}
+          className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+            mapType === 'osm'
+              ? 'bg-brand-600 text-white shadow-sm'
+              : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+          }`}
+          title="OpenStreetMap ochiq xaritasi"
+        >
+          <Layers className="w-3.5 h-3.5" />
+          <span className="text-[11px] font-extrabold hidden sm:inline">OSM</span>
+        </button>
       </div>
 
       {/* Specialist Popup Card at bottom */}
