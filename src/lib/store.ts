@@ -82,13 +82,23 @@ interface AppState {
 }
 
 function loadInitialState(): AppState {
+  let savedUser: CurrentUser | null = null;
   try {
-    const saved = localStorage.getItem('ishtop_state_v1');
+    const rawUser = localStorage.getItem('ishtop_current_user');
+    if (rawUser) {
+      savedUser = JSON.parse(rawUser);
+    }
+  } catch (e) {
+    console.error('Failed to load user', e);
+  }
+
+  try {
+    const saved = localStorage.getItem('ishtop_state_v2');
     if (saved) {
       const parsed = JSON.parse(saved);
       return {
         ...parsed,
-        // Ensure fresh city coords fallback
+        user: savedUser,
         selectedCity: parsed.selectedCity || CITIES[0],
       };
     }
@@ -97,7 +107,7 @@ function loadInitialState(): AppState {
   }
 
   return {
-    user: DEFAULT_USER,
+    user: savedUser,
     selectedCity: CITIES[0], // Navoiy shahri
     serviceRadiusKm: 30,
     specialists: INITIAL_SPECIALISTS,
@@ -111,9 +121,9 @@ function loadInitialState(): AppState {
     applications: [],
     reports: [],
     favorites: {
-      profiles: ['spec-1'],
-      jobs: ['job-1'],
-      services: ['srv-1']
+      profiles: [],
+      jobs: [],
+      services: []
     },
     darkMode: false,
     language: 'uz'
@@ -146,6 +156,20 @@ export const store = {
 
   setUser(user: CurrentUser | null) {
     state = { ...state, user };
+    if (user) {
+      localStorage.setItem('ishtop_current_user', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('ishtop_current_user');
+    }
+    notify();
+  },
+
+  logout() {
+    state = { ...state, user: null };
+    localStorage.removeItem('ishtop_current_user');
+    if (isSupabaseConfigured) {
+      supabase.auth.signOut().catch(console.warn);
+    }
     notify();
   },
 
@@ -565,7 +589,101 @@ async function initSupabaseSync() {
   if (!isSupabaseConfigured) return;
 
   try {
-    // 1. Fetch live jobs if any
+    // 0. Check Supabase Auth Session
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (sessionData?.session?.user && !state.user) {
+      const u = sessionData.session.user;
+      const meta = u.user_metadata || {};
+      const fullName = meta.full_name || meta.name || '';
+      const parts = fullName.split(' ');
+      const loadedUser: CurrentUser = {
+        id: u.id,
+        name: parts[0] || 'Foydalanuvchi',
+        surname: parts.slice(1).join(' ') || '',
+        phone: meta.phone || u.phone || '',
+        email: u.email || '',
+        avatar: meta.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop&q=80',
+        roles: meta.roles || ['buyurtmachi'],
+        currentRole: meta.roles?.[0] || 'buyurtmachi',
+        isVerified: true,
+        city: meta.city || 'Navoiy shahri',
+        lat: 40.0844,
+        lng: 65.3792,
+        serviceRadiusKm: 30
+      };
+      state = { ...state, user: loadedUser };
+      localStorage.setItem('ishtop_current_user', JSON.stringify(loadedUser));
+      notify();
+    }
+
+    // 1. Fetch live specialists from profiles
+    const { data: dbProfiles } = await supabase
+      .from('profiles')
+      .select('*')
+      .order('rating', { ascending: false });
+
+    if (dbProfiles && dbProfiles.length > 0) {
+      const mappedProfiles: SpecialistProfile[] = dbProfiles.map((p: any) => ({
+        id: p.id || 'spec-' + Date.now(),
+        userId: p.user_id || p.id,
+        name: p.name || 'Mutaxassis',
+        surname: p.surname || '',
+        username: p.username || 'usta_' + (p.name || 'mutaxassis').toLowerCase(),
+        avatar: p.avatar_url || 'https://images.unsplash.com/photo-1540569014015-19a7be504e3a?w=400&auto=format&fit=crop&q=80',
+        phone: p.phone || '+998 90 123 45 67',
+        email: p.email || '',
+        city: p.city || 'Navoiy shahri',
+        district: p.district || 'Markaz',
+        address: p.address || p.city,
+        lat: Number(p.latitude) || 40.0915,
+        lng: Number(p.longitude) || 65.3850,
+        serviceRadiusKm: p.service_radius_km || 30,
+        profession: p.profession || 'Usta',
+        specialty: p.specialty || p.profession,
+        experienceYears: p.experience_years || 3,
+        bio: p.bio || '',
+        about: p.about || '',
+        skills: Array.isArray(p.skills) ? p.skills : ['Malakali mutaxassis'],
+        languages: ["O'zbekcha"],
+        education: p.education || 'Oliy / Kollej',
+        certificates: ['IshTop Tasdiqlangan'],
+        workType: p.work_type || 'full_time',
+        expectedSalary: Number(p.expected_salary) || 8000000,
+        serviceRates: [
+          { id: 'rate-1', title: 'Standart xizmat', price: 150000, unit: "so'm / soat" }
+        ],
+        workHours: p.work_hours || '08:30 - 18:30',
+        restDays: ['Yakshanba'],
+        isAvailable: p.is_available ?? true,
+        workMode: p.work_mode || 'both',
+        serviceLocationType: p.service_location_type || 'both',
+        rating: Number(p.rating) || 5.0,
+        reviewCount: p.review_count || 1,
+        completedJobsCount: p.completed_jobs_count || 1,
+        verification: {
+          phone: true,
+          email: true,
+          identity: true,
+          profession: true,
+          company: false,
+          portfolio: true,
+        },
+        socialLinks: {
+          telegram: 'https://t.me',
+          phone: p.phone || '+998 90 123 45 67'
+        },
+        portfolios: [],
+        createdAt: 'Yangi'
+      }));
+
+      state = {
+        ...state,
+        specialists: [...mappedProfiles, ...state.specialists.filter(sp => !mappedProfiles.some(mp => mp.id === sp.id))]
+      };
+      notify();
+    }
+
+    // 2. Fetch live jobs if any
     const { data: dbJobs } = await supabase
       .from('jobs')
       .select('*')

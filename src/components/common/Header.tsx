@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapPin, Bell, Moon, Sun, ChevronDown, Download } from 'lucide-react';
+import { MapPin, Bell, Moon, Sun, ChevronDown, Download, LogIn } from 'lucide-react';
 import { useStore } from '../../lib/store';
 
 interface HeaderProps {
@@ -77,18 +77,29 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </button>
 
-          {/* User Avatar */}
-          <button
-            onClick={onOpenProfile}
-            className="relative w-9 h-9 rounded-full overflow-hidden ring-2 ring-brand-500/20 hover:ring-brand-500 transition-all ml-0.5"
-          >
-            <img
-              src={user?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80'}
-              alt={user?.name || 'User'}
-              className="w-full h-full object-cover"
-            />
-            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 rounded-full border border-white"></span>
-          </button>
+          {/* User Avatar or Login Button */}
+          {user ? (
+            <button
+              onClick={onOpenProfile}
+              className="relative w-9 h-9 rounded-full overflow-hidden ring-2 ring-brand-500/20 hover:ring-brand-500 transition-all ml-0.5"
+              title={`${user.name} profili`}
+            >
+              <img
+                src={user.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop&q=80'}
+                alt={user.name}
+                className="w-full h-full object-cover"
+              />
+              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 rounded-full border border-white"></span>
+            </button>
+          ) : (
+            <button
+              onClick={onOpenProfile}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-brand-600 hover:bg-brand-700 text-white text-xs font-black shadow-sm active:scale-95 transition-all ml-0.5"
+            >
+              <LogIn className="w-3.5 h-3.5" />
+              <span>Kirish</span>
+            </button>
+          )}
         </div>
       </div>
     </header>

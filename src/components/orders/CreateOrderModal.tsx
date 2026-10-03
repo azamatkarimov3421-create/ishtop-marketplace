@@ -23,7 +23,7 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
   );
   const [problemDescription, setProblemDescription] = useState('');
   const [budget, setBudget] = useState(500000);
-  const [address, setAddress] = useState("Navoiy sh., G'alaba ko'chasi 14");
+  const [address, setAddress] = useState(user?.city ? `${user.city}, Markaz` : `${selectedCity.name}, Markaz`);
   const [requiredDate, setRequiredDate] = useState('2026-10-15');
   const [notes, setNotes] = useState('');
 
@@ -34,11 +34,11 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
     if (!problemDescription) return;
 
     actions.createOrder({
-      customerId: user?.id || 'current-user',
-      customerName: user ? `${user.name} ${user.surname}` : 'Mijoz',
-      customerPhone: user?.phone || '+998 90 123 45 67',
+      customerId: user?.id || 'guest-' + Date.now(),
+      customerName: user ? `${user.name} ${user.surname}` : 'Buyurtmachi',
+      customerPhone: user?.phone || '+998 ',
       specialistId: specialist?.id || 'spec-1',
-      specialistName: specialist?.name || 'Sardorbek',
+      specialistName: specialist?.name || 'Mutaxassis',
       specialistAvatar: specialist?.avatar || 'https://images.unsplash.com/photo-1540569014015-19a7be504e3a?w=400&auto=format&fit=crop&q=80',
       serviceTitle,
       category: specialist?.profession || 'Usta xizmati',

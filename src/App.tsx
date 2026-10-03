@@ -28,10 +28,10 @@ import { OnboardingModal } from './components/onboarding/OnboardingModal';
 import { CVModal } from './components/profile/CVModal';
 
 import { SpecialistProfile, Job, Order } from './types';
-import { Map, Heart, LayoutDashboard, ShieldCheck, LogIn, CheckCircle } from 'lucide-react';
+import { Map, Heart, LayoutDashboard, ShieldCheck, LogIn, LogOut, CheckCircle } from 'lucide-react';
 
 export function App() {
-  const { specialists, user } = useStore();
+  const { specialists, user, actions } = useStore();
 
   // Navigation State
   const [activeTab, setActiveTab] = useState<NavTab>('home');
@@ -93,73 +93,58 @@ export function App() {
   };
 
   // Convert current user to specialist profile format for personal profile tab
-  const currentUserSpecialist: SpecialistProfile = {
-    id: user?.id || 'current-user-id',
-    userId: user?.id || 'current-user-id',
-    name: user?.name || 'Sherzod',
-    surname: user?.surname || 'Alimov',
-    username: 'sherzodbek',
-    avatar: user?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80',
-    phone: user?.phone || '+998 90 123 45 67',
-    email: user?.email || 'sherzod.user@gmail.com',
-    city: user?.city || 'Navoiy shahri',
-    district: "Zarafshon ko'chasi",
-    address: "Navoiy sh., G'alaba ko'chasi",
-    lat: user?.lat || 40.0844,
-    lng: user?.lng || 65.3792,
-    serviceRadiusKm: user?.serviceRadiusKm || 30,
-    profession: 'Mebel va Santexnika ustasi',
-    specialty: "Zamonaviy mebel yig'ish va quvurlar montaji",
-    experienceYears: 7,
-    bio: 'IshTop platformasidagi faol foydalanuvchi va sertifikatlangan usta.',
-    about: "Mebel yasash va santexnika ishlarida ko'p yillik amaliy tajribaga egaman. O'z vaqtida, sifatli va kafolatli xizmat ko'rsataman.",
-    skills: ['Mebel montaji', 'Elektromontaj', 'Santexnika', 'Chizmalar bilan ishlash'],
-    languages: ["O'zbekcha", 'Ruscha'],
-    education: 'Navoiy Kasb-Hunar Kolleji',
-    certificates: ['Universal Master Certificate 2024'],
+  const currentUserSpecialist: SpecialistProfile | null = user ? {
+    id: user.id,
+    userId: user.id,
+    name: user.name,
+    surname: user.surname,
+    username: (user.name + '_' + (user.surname || '')).toLowerCase().replace(/\s+/g, '_'),
+    avatar: user.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop&q=80',
+    phone: user.phone,
+    email: user.email,
+    city: user.city,
+    district: "Markaziy hudud",
+    address: user.city,
+    lat: user.lat,
+    lng: user.lng,
+    serviceRadiusKm: user.serviceRadiusKm,
+    profession: user.roles.includes('usta') ? 'Usta / Mutaxassis' : user.roles.includes('freelancer') ? 'Freelancer' : user.roles.includes('ishchi') ? 'Ishchi' : 'Buyurtmachi',
+    specialty: "IshTop platformasidagi faol a'zo",
+    experienceYears: 1,
+    bio: "IshTop platformasidagi shaxsiy profilim.",
+    about: "Men platformada o'z xizmatlarimni taqdim etaman yoki zarur xizmatlarga buyurtma beraman.",
+    skills: ["Mas'uliyat", 'Halollik', 'Sifatli xizmat'],
+    languages: ["O'zbekcha"],
+    education: "Ma'lumot ko'rsatilmagan",
+    certificates: ['IshTop Tasdiqlangan'],
     workType: 'full_time',
-    expectedSalary: 9500000,
+    expectedSalary: 7000000,
     serviceRates: [
-      { id: 'usr-1', title: "Mebel yig'ish va o'rnatish", price: 200000, unit: "so'm / soat" },
-      { id: 'usr-2', title: 'Santexnika kranlarini sozlash', price: 70000, unit: "so'm / dona" }
+      { id: 'usr-1', title: "Xizmat ko'rsatish", price: 100000, unit: "so'm / soat" }
     ],
-    workHours: '09:00 - 19:00',
+    workHours: '09:00 - 18:00',
     restDays: ['Yakshanba'],
     isAvailable: true,
     workMode: 'both',
     serviceLocationType: 'both',
-    rating: 4.9,
-    reviewCount: 38,
-    completedJobsCount: 42,
+    rating: 5.0,
+    reviewCount: 0,
+    completedJobsCount: 0,
     verification: {
       phone: true,
       email: true,
       identity: true,
-      profession: true,
+      profession: false,
       company: false,
-      portfolio: true,
+      portfolio: false,
     },
     socialLinks: {
-      telegramUsername: 'sherzod_alimov',
-      phone: '+998901234567'
+      phone: user.phone
     },
-    portfolios: [
-      {
-        id: 'uport-1',
-        title: 'Shaxsiy mebel montaj ishlari',
-        description: "Mijoz xonadoniga zamonaviy garderob o'rnatish jarayoni.",
-        category: 'Mebel',
-        price: 4500000,
-        duration: '2 kun',
-        images: [
-          'https://images.unsplash.com/photo-1595428774223-ef52624120d2?w=600&auto=format&fit=crop&q=80',
-          'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=600&auto=format&fit=crop&q=80'
-        ]
-      }
-    ],
+    portfolios: [],
     distanceKm: 0,
-    isVip: true,
-  };
+    isVip: false,
+  } : null;
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors">
@@ -168,8 +153,12 @@ export function App() {
         onOpenLocation={() => setIsLocationOpen(true)}
         onOpenNotifications={() => setIsNotificationsOpen(true)}
         onOpenProfile={() => {
-          setActiveSpecialist(null);
-          setActiveTab('profile');
+          if (!user) {
+            setIsAuthOpen(true);
+          } else {
+            setActiveSpecialist(null);
+            setActiveTab('profile');
+          }
         }}
         onOpenAPKModal={() => setIsAPKOpen(true)}
       />
@@ -275,38 +264,86 @@ export function App() {
         )}
 
         {activeTab === 'profile' && (
-          <ProfileView
-            specialist={activeSpecialist || currentUserSpecialist}
-            onBack={() => {
-              if (activeSpecialist) {
+          activeSpecialist ? (
+            <ProfileView
+              specialist={activeSpecialist}
+              onBack={() => {
                 setActiveSpecialist(null);
                 setActiveTab('home');
-              } else {
-                setActiveTab('home');
-              }
-            }}
-            onContact={handleContact}
-            onOrder={(s) => {
-              setActiveSpecialist(s);
-              setIsCreateOrderOpen(true);
-            }}
-            onInvite={(s) => {
-              setActiveSpecialist(s);
-              setIsInvitationOpen(true);
-            }}
-            onShare={(s) => {
-              setActiveSpecialist(s);
-              setIsShareOpen(true);
-            }}
-            onReport={(s) => {
-              setActiveSpecialist(s);
-              setIsReportOpen(true);
-            }}
-            onOpenCV={(s) => {
-              setActiveSpecialist(s);
-              setIsCVOpen(true);
-            }}
-          />
+              }}
+              onContact={handleContact}
+              onOrder={(s) => {
+                setActiveSpecialist(s);
+                setIsCreateOrderOpen(true);
+              }}
+              onInvite={(s) => {
+                setActiveSpecialist(s);
+                setIsInvitationOpen(true);
+              }}
+              onShare={(s) => {
+                setActiveSpecialist(s);
+                setIsShareOpen(true);
+              }}
+              onReport={(s) => {
+                setActiveSpecialist(s);
+                setIsReportOpen(true);
+              }}
+              onOpenCV={(s) => {
+                setActiveSpecialist(s);
+                setIsCVOpen(true);
+              }}
+            />
+          ) : user && currentUserSpecialist ? (
+            <div className="space-y-4">
+              <ProfileView
+                specialist={currentUserSpecialist}
+                onBack={() => setActiveTab('home')}
+                onContact={handleContact}
+                onOrder={() => {}}
+                onInvite={() => {}}
+                onShare={(s) => {
+                  setActiveSpecialist(s);
+                  setIsShareOpen(true);
+                }}
+                onReport={() => {}}
+                onOpenCV={(s) => {
+                  setActiveSpecialist(s);
+                  setIsCVOpen(true);
+                }}
+              />
+              <div className="max-w-md mx-auto px-4 pb-8">
+                <button
+                  onClick={() => {
+                    actions.logout();
+                    setActiveTab('home');
+                    showToast("Tizimdan muvaffaqiyatli chiqdingiz");
+                  }}
+                  className="w-full py-3 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 font-extrabold text-xs rounded-2xl border border-rose-200 dark:border-rose-800 hover:bg-rose-100 dark:hover:bg-rose-900/50 transition-colors flex items-center justify-center gap-2"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>Hisobdan Chiqish (Log out)</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="max-w-md mx-auto p-6 text-center space-y-4 pt-16 animate-fade-in">
+              <div className="w-20 h-20 mx-auto rounded-3xl bg-brand-50 dark:bg-brand-950/60 text-brand-600 dark:text-brand-400 flex items-center justify-center shadow-inner">
+                <LogIn className="w-10 h-10" />
+              </div>
+              <h3 className="text-xl font-black text-slate-900 dark:text-white">
+                Shaxsiy Profilingizga Kiring
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs mx-auto leading-relaxed">
+                O'z xizmatlaringizni qo'shish, ish topish, buyurtma berish yoki ishchilarni yollash uchun profilingizga kiring yoki yangi hisob oching.
+              </p>
+              <button
+                onClick={() => setIsAuthOpen(true)}
+                className="w-full py-3.5 px-6 rounded-2xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-extrabold shadow-lg shadow-brand-500/25 active:scale-95 transition-all"
+              >
+                Kirish yoki Ro'yxatdan o'tish
+              </button>
+            </div>
+          )
         )}
 
         {activeTab === 'dashboard' && (

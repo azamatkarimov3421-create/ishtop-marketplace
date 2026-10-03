@@ -23,8 +23,8 @@ export const CreateJobModal: React.FC<CreateJobModalProps> = ({ isOpen, onClose,
   const [salaryMin, setSalaryMin] = useState(6000000);
   const [salaryMax, setSalaryMax] = useState(10000000);
   const [jobType, setJobType] = useState<Job['jobType']>('full_time');
-  const [phone, setPhone] = useState(user?.phone || '+998 90 123 45 67');
-  const [address, setAddress] = useState("Navoiy sh., Markaziy ko'cha 10");
+  const [phone, setPhone] = useState(user?.phone || '+998 ');
+  const [address, setAddress] = useState(user?.city ? `${user.city}, Markaz` : `${selectedCity.name}, Markaz`);
 
   // AI Generation State
   const [aiPrompt, setAiPrompt] = useState('');
